@@ -1,6 +1,10 @@
-/target
-/target-test
-/target-clippy
-/.cargo-home
-/.aegis_disk_trash
+/target/
+/target-*/
+/.cargo-home/
+/demo/
+/.aegis_disk_trash/
+
 .DS_Store
+
+aegis-report.md
+aegis-report.json

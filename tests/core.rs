@@ -7,9 +7,12 @@ use std::fs;
 
 use aegis_disk::{
     analysis::{
-        Analyzer, DuplicateAnalyzer, LargeFileAnalyzer, ResidueAnalyzer, rule::cleanable_findings,
+        Analyzer, DuplicateAnalyzer, FileTypeAnalyzer, LargeFileAnalyzer, ResidueAnalyzer,
+        rule::cleanable_findings,
     },
+    app,
     cleaner::{CleanPlan, TrashCleaner},
+    cli::{Cli, Command},
     config::AppConfig,
     fs::{SafetyGuard, Scanner},
     utils::format::parse_size,
@@ -54,6 +57,11 @@ fn analyzers_find_expected_items() {
 
     // a.txt 和 b.txt 内容相同，应形成一个重复文件组，共两个发现项。
     assert_eq!(DuplicateAnalyzer::new(1).analyze(&report.entries).len(), 2);
+
+    // 文件类型分析器应能统计 bin 和 txt 等扩展名的数量与空间。
+    let type_stats = FileTypeAnalyzer::new().analyze(&report.entries);
+    assert!(type_stats.iter().any(|stat| stat.extension == "bin"));
+    assert!(type_stats.iter().any(|stat| stat.extension == "txt"));
 }
 
 #[test]
@@ -84,6 +92,22 @@ fn config_can_roundtrip_as_toml() {
     let decoded: AppConfig = toml::from_str(&toml).unwrap();
 
     assert!(decoded.residue_dirs.contains(&"target".to_owned()));
+}
+
+#[test]
+fn scan_reports_missing_root_as_error() {
+    let dir = tempdir().unwrap();
+    let missing = dir.path().join("missing");
+    let cli = Cli {
+        config: None,
+        command: Command::Scan {
+            path: missing,
+            limit: 10,
+        },
+    };
+
+    let error = app::run(cli).unwrap_err().to_string();
+    assert!(error.contains("scan root does not exist"));
 }
 
 #[test]

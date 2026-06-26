@@ -49,10 +49,14 @@ pub fn run(report: ScanReport, findings: Vec<Finding>) -> Result<()> {
                 | KeyCode::Char('K')
                 | KeyCode::Char('p')
                 | KeyCode::Char('P') => state.previous(),
+                KeyCode::Home => state.first(),
+                KeyCode::End => state.last(),
+                KeyCode::Char('f') | KeyCode::Char('F') => state.next_filter(),
+                KeyCode::Char('s') | KeyCode::Char('S') => state.next_sort(),
+                KeyCode::Char('r') | KeyCode::Char('R') => state.reset_view(),
+                KeyCode::BackTab | KeyCode::Left => state.previous_panel(),
                 KeyCode::Tab
-                | KeyCode::BackTab
                 | KeyCode::Right
-                | KeyCode::Left
                 | KeyCode::Enter
                 | KeyCode::Char(' ')
                 | KeyCode::Char('h')

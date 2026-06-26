@@ -65,6 +65,26 @@ pub enum Command {
         #[arg(long, default_value_t = 50)]
         limit: usize,
     },
+    /// 按文件扩展名统计文件数量和占用空间。
+    Types {
+        path: PathBuf,
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+    },
+    /// 根据扫描结果生成诊断建议。
+    Insights {
+        path: PathBuf,
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+    },
+    /// 导出 Markdown 或 JSON 格式的扫描报告。
+    Export {
+        path: PathBuf,
+        #[arg(long, default_value = "markdown")]
+        format: String,
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
     /// 根据分析结果生成清理计划，支持 dry-run 和真正执行。
     Clean {
         path: PathBuf,

@@ -4,6 +4,8 @@
 //! 这种 trait 设计让大文件分析、残留目录分析和重复文件分析可以被统一调度。
 
 pub mod duplicate;
+pub mod file_type;
+pub mod insight;
 pub mod large;
 pub mod residue;
 pub mod rule;
@@ -60,5 +62,7 @@ pub trait Analyzer {
 }
 
 pub use duplicate::{DuplicateAnalyzer, DuplicateGroup};
+pub use file_type::{FileTypeAnalyzer, FileTypeStat};
+pub use insight::{DiskInsight, InsightAnalyzer, InsightSeverity};
 pub use large::LargeFileAnalyzer;
 pub use residue::ResidueAnalyzer;

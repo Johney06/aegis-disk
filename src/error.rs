@@ -15,6 +15,12 @@ pub enum SentinelError {
     /// 大小表达式解析失败，例如无法识别的单位。
     #[error("invalid size expression: {0}")]
     InvalidSize(String),
+    /// 扫描入口不存在，通常是用户命令中的路径写错。
+    #[error("scan root does not exist: {0}")]
+    ScanRootNotFound(PathBuf),
+    /// 扫描入口不是目录，避免把单个文件误当成根目录处理。
+    #[error("scan root is not a directory: {0}")]
+    ScanRootNotDirectory(PathBuf),
     /// clean 命令必须明确选择 dry-run 或 execute。
     #[error("clean requires either --dry-run or --execute")]
     MissingCleanMode,

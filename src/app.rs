@@ -3,28 +3,42 @@
 //! 这一层负责把 CLI 命令转换为具体业务流程：加载配置、扫描目录、运行分析器、
 //! 生成清理计划、输出结果或启动 TUI。算法细节放在各自模块中，这样测试和维护更方便。
 
-use std::io::{self, Write};
+use std::{
+    fs,
+    io::{self, Write},
+    path::{Path, PathBuf},
+};
 
 use anyhow::{Result, bail};
 
 use crate::{
     analysis::{
-        Analyzer, DuplicateAnalyzer, LargeFileAnalyzer, ResidueAnalyzer, rule::cleanable_findings,
+        Analyzer, DiskInsight, DuplicateAnalyzer, FileTypeAnalyzer, FileTypeStat, Finding,
+        InsightAnalyzer, LargeFileAnalyzer, ResidueAnalyzer, rule::cleanable_findings,
     },
     cleaner::{CleanPlan, TrashCleaner},
     cli::{Cli, Command, ConfigCommand},
     config::AppConfig,
     error::SentinelError,
+    export::{ExportContext, ExportFormat, render},
     fs::{SafetyGuard, Scanner},
     tui,
     utils::format::{bytes, parse_size},
 };
+
+type AnalysisContext = (
+    crate::fs::ScanReport,
+    Vec<Finding>,
+    Vec<FileTypeStat>,
+    Vec<DiskInsight>,
+);
 
 pub fn run(cli: Cli) -> Result<()> {
     // 配置先于命令执行加载，使扫描器、分析器和 TUI 都能共享同一份规则。
     let config = AppConfig::load(cli.config)?;
     match cli.command {
         Command::Scan { path, limit } => {
+            validate_scan_root(&path)?;
             let report = Scanner::new(config).scan(&path);
             print_report(&report, limit);
         }
@@ -34,23 +48,56 @@ pub fn run(cli: Cli) -> Result<()> {
             limit,
         } => {
             let min_size = parse_size(&min_size)?;
+            validate_scan_root(&path)?;
             let report = Scanner::new(config).scan(&path);
             print_report_summary(&report);
             let findings = LargeFileAnalyzer::new(min_size).analyze(&report.entries);
             print_findings(&findings, limit);
         }
         Command::Residue { path, limit } => {
+            validate_scan_root(&path)?;
             let report = Scanner::new(config.clone()).scan(&path);
             print_report_summary(&report);
             let findings = ResidueAnalyzer::new(&config).analyze(&report.entries);
             print_findings(&findings, limit);
         }
         Command::Duplicates { path, limit } => {
+            validate_scan_root(&path)?;
             let report = Scanner::new(config.clone()).scan(&path);
             print_report_summary(&report);
             let findings =
                 DuplicateAnalyzer::new(config.duplicate_min_size).analyze(&report.entries);
             print_findings(&findings, limit);
+        }
+        Command::Types { path, limit } => {
+            validate_scan_root(&path)?;
+            let report = Scanner::new(config).scan(&path);
+            print_report_summary(&report);
+            let stats = FileTypeAnalyzer::new().top_n(&report.entries, limit);
+            print_file_type_stats(&stats);
+        }
+        Command::Insights { path, limit } => {
+            validate_scan_root(&path)?;
+            let (report, findings, _, insights) = build_analysis_context(path, &config)?;
+            print_report_summary(&report);
+            print_insights(&insights, limit);
+            if findings.is_empty() {
+                println!("\nNo cleanup-oriented findings were detected.");
+            }
+        }
+        Command::Export {
+            path,
+            format,
+            output,
+        } => {
+            validate_scan_root(&path)?;
+            let format = ExportFormat::parse(&format).ok_or_else(|| {
+                anyhow::anyhow!("unsupported export format: {format}; use markdown or json")
+            })?;
+            let (report, findings, file_types, insights) = build_analysis_context(path, &config)?;
+            let context = ExportContext::new(report, findings, file_types, insights);
+            let rendered = render(&context, format)?;
+            write_export(output, &rendered, format)?;
         }
         Command::Clean {
             path,
@@ -70,6 +117,7 @@ pub fn run(cli: Cli) -> Result<()> {
             if guard.is_dangerous_root(&path) {
                 return Err(SentinelError::ProtectedPath(path).into());
             }
+            validate_scan_root(&path)?;
             let report = Scanner::new(config.clone()).scan(&path);
             let findings = match target.as_str() {
                 "residue" => ResidueAnalyzer::new(&config).analyze(&report.entries),
@@ -104,6 +152,7 @@ pub fn run(cli: Cli) -> Result<()> {
             }
         },
         Command::Tui { path } => {
+            validate_scan_root(&path)?;
             let report = Scanner::new(config.clone()).scan(&path);
             let mut findings = Vec::new();
             let large_threshold = parse_size(&config.default_large_file_threshold)?;
@@ -113,6 +162,39 @@ pub fn run(cli: Cli) -> Result<()> {
                 .extend(DuplicateAnalyzer::new(config.duplicate_min_size).analyze(&report.entries));
             tui::run(report, findings)?;
         }
+    }
+    Ok(())
+}
+
+fn validate_scan_root(path: &Path) -> Result<()> {
+    if !path.exists() {
+        return Err(SentinelError::ScanRootNotFound(path.to_path_buf()).into());
+    }
+    if !path.is_dir() {
+        return Err(SentinelError::ScanRootNotDirectory(path.to_path_buf()).into());
+    }
+    Ok(())
+}
+
+fn build_analysis_context(path: PathBuf, config: &AppConfig) -> Result<AnalysisContext> {
+    let report = Scanner::new(config.clone()).scan(&path);
+    let large_threshold = parse_size(&config.default_large_file_threshold)?;
+    let mut findings = Vec::new();
+    findings.extend(LargeFileAnalyzer::new(large_threshold).analyze(&report.entries));
+    findings.extend(ResidueAnalyzer::new(config).analyze(&report.entries));
+    findings.extend(DuplicateAnalyzer::new(config.duplicate_min_size).analyze(&report.entries));
+    findings.sort_by(|a, b| b.size.cmp(&a.size));
+    let file_types = FileTypeAnalyzer::new().top_n(&report.entries, 50);
+    let insights = InsightAnalyzer::new().analyze(&report, &findings);
+    Ok((report, findings, file_types, insights))
+}
+
+fn write_export(output: Option<PathBuf>, rendered: &str, format: ExportFormat) -> Result<()> {
+    if let Some(path) = output {
+        fs::write(&path, rendered)?;
+        println!("Exported {} report to {}", format.label(), path.display());
+    } else {
+        println!("{rendered}");
     }
     Ok(())
 }
@@ -151,6 +233,40 @@ fn print_findings(findings: &[crate::analysis::Finding], limit: usize) {
             finding.path.display()
         );
         println!("  reason: {}", finding.reason);
+    }
+}
+
+fn print_file_type_stats(stats: &[crate::analysis::FileTypeStat]) {
+    println!("\nFile type distribution: {} type(s)", stats.len());
+    println!(
+        "{:<18} {:>8} {:>14} {:>14}  Largest file",
+        "Extension", "Files", "Total", "Average"
+    );
+    for stat in stats {
+        let largest = stat
+            .largest_file
+            .as_ref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|| "-".to_owned());
+        println!(
+            "{:<18} {:>8} {:>14} {:>14}  {}",
+            stat.display_extension(),
+            stat.files,
+            bytes(stat.total_size),
+            bytes(stat.average_size()),
+            largest
+        );
+    }
+}
+
+fn print_insights(insights: &[crate::analysis::DiskInsight], limit: usize) {
+    println!("\nInsights: {}", insights.len());
+    for insight in insights.iter().take(limit) {
+        println!("[{}] {}", insight.severity.label(), insight.title);
+        println!("  {}", insight.message);
+        if let Some(command) = &insight.suggested_command {
+            println!("  suggested: {command}");
+        }
     }
 }
 

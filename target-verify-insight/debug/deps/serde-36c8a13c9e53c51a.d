@@ -1,0 +1,12 @@
+/Users/johney/Desktop/code/rust code/disk-sentinel/target-verify-insight/debug/deps/serde-36c8a13c9e53c51a.d: /Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/johney/Desktop/code/rust\ code/disk-sentinel/target-verify-insight/debug/build/serde-a1ac1be19d5b0a76/out/private.rs
+
+/Users/johney/Desktop/code/rust code/disk-sentinel/target-verify-insight/debug/deps/libserde-36c8a13c9e53c51a.rmeta: /Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/johney/Desktop/code/rust\ code/disk-sentinel/target-verify-insight/debug/build/serde-a1ac1be19d5b0a76/out/private.rs
+
+/Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/johney/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Users/johney/Desktop/code/rust\ code/disk-sentinel/target-verify-insight/debug/build/serde-a1ac1be19d5b0a76/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/johney/Desktop/code/rust code/disk-sentinel/target-verify-insight/debug/build/serde-a1ac1be19d5b0a76/out
